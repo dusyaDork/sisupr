@@ -527,7 +527,7 @@ class TaskManagerApp:
             self.show_task_details({"id": task_id})
             
         except Exception as e:
-            messagebox.showerror("Ошибка", f"Не удалось добавить комментарий: {e}")
+            messagebox.showerror("Ошибка", f"Не удалось добавить комментарий: {str(e)}")
     
     def upload_file(self, task_id, dialog):
         """Загрузка файла для задачи"""
