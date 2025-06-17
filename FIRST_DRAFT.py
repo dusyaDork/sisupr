@@ -10,6 +10,26 @@ SUPABASE_URL = "https://nnixjfqeygpvpeylkbux.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uaXhqZnFleWdwdnBleWxrYnV4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAxNDAyNzgsImV4cCI6MjA2NTcxNjI3OH0.Es78nkIZlRv9lRB92T8CPygqLiuM6I327iUWr53Q85U"
 supabase_client = supabase.create_client(SUPABASE_URL, SUPABASE_KEY)
 
+def format_datetime(dt_str):
+    """Форматирует строку даты-времени из формата БД в читаемый вид"""
+    if not dt_str:
+        return ""
+    try:
+        dt = datetime.strptime(dt_str, "%Y-%m-%dT%H:%M:%S")
+        return dt.strftime("%Y-%m-%d %H:%M")
+    except:
+        return dt_str
+
+def parse_datetime(dt_str):
+    """Преобразует строку даты-времени в формат БД"""
+    if not dt_str:
+        return None
+    try:
+        dt = datetime.strptime(dt_str, "%Y-%m-%d %H:%M")
+        return dt.strftime("%Y-%m-%dT%H:%M:%S")
+    except:
+        return dt_str
+
 class TaskManagerApp:
     def __init__(self, root):
         self.root = root
@@ -76,7 +96,7 @@ class TaskManagerApp:
     
     def setup_kanban(self):
         """Настройка Kanban доски"""
-        columns = ["To Do", "In Progress", "Done"]
+        columns = ["▢ To Do", "▣ In Progress", "◼ Done"]
         
         self.kanban_canvas = tk.Canvas(self.kanban_frame)
         self.kanban_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -240,23 +260,23 @@ class TaskManagerApp:
         # Отображение информации о задаче
         ttk.Label(frame, text=task["title"], font=("Arial", 10, "bold")).pack(anchor=tk.W)
         ttk.Label(frame, text=f"Приоритет: {task['priority']}").pack(anchor=tk.W)
-        ttk.Label(frame, text=f"Дедлайн: {task['deadline']}").pack(anchor=tk.W)
+        ttk.Label(frame, text=f"Дедлайн: {format_datetime(task['deadline'])}").pack(anchor=tk.W)
         
         # Кнопки управления
         button_frame = ttk.Frame(frame)
         button_frame.pack(fill=tk.X)
         
         # Кнопки для перемещения между статусами
-        if task["status"] != "To Do":
-            ttk.Button(button_frame, text="←", width=3, 
-                      command=lambda t=task: self.change_task_status(t, "To Do")).pack(side=tk.LEFT)
+        if task["status"] != "▢ To Do":
+            ttk.Button(button_frame, text="▢", width=3, 
+                      command=lambda t=task: self.change_task_status(t, "▢ To Do")).pack(side=tk.LEFT)
         
-        if task["status"] != "In Progress":
-            ttk.Button(button_frame, text="→", width=3, 
-                      command=lambda t=task: self.change_task_status(t, "In Progress")).pack(side=tk.LEFT)
+        if task["status"] != "▣ In Progress":
+            ttk.Button(button_frame, text="▣", width=3, 
+                      command=lambda t=task: self.change_task_status(t, "▣ In Progress")).pack(side=tk.LEFT)
         
-        if task["status"] != "Done":
-            ttk.Button(button_frame, text="✓", width=3, 
+        if task["status"] != "◼ Done":
+            ttk.Button(button_frame, text="◼", width=3, 
                       command=lambda t=task: self.change_task_status(t, "Done")).pack(side=tk.LEFT)
         
         ttk.Button(button_frame, text="...", width=3, 
@@ -291,6 +311,7 @@ class TaskManagerApp:
                 ttk.Label(task_frame, text=task["title"], width=30).pack(side=tk.LEFT)
                 ttk.Label(task_frame, text=task["priority"], width=10).pack(side=tk.LEFT)
                 ttk.Label(task_frame, text=task["status"], width=15).pack(side=tk.LEFT)
+                ttk.Label(task_frame, text=format_datetime(task["deadline"]), width=15).pack(side=tk.LEFT)
                 
                 ttk.Button(task_frame, text="Подробнее", 
                           command=lambda t=task: self.show_task_details(t)).pack(side=tk.RIGHT)
@@ -321,9 +342,9 @@ class TaskManagerApp:
                     values=["Низкий", "Средний", "Высокий", "Критический"]).grid(row=3, column=1, padx=10, pady=5, sticky=tk.W)
         
         ttk.Label(dialog, text="Статус:").grid(row=4, column=0, padx=10, pady=5, sticky=tk.W)
-        status_var = tk.StringVar(value="To Do")
+        status_var = tk.StringVar(value="▢ To Do")
         ttk.Combobox(dialog, textvariable=status_var, 
-                    values=["To Do", "In Progress", "Done"]).grid(row=4, column=1, padx=10, pady=5, sticky=tk.W)
+                    values=["▢ To Do", "▣ In Progress", "◼ Done"]).grid(row=4, column=1, padx=10, pady=5, sticky=tk.W)
         
         # Назначение исполнителей (если есть пользователи)
         try:
@@ -366,11 +387,12 @@ class TaskManagerApp:
             return
         
         try:
+            formatted_deadline = parse_datetime(deadline)
             # Добавление задачи
             task_data = {
                 "title": title,
                 "description": description,
-                "deadline": deadline,
+                "deadline": formatted_deadline,
                 "priority": priority,
                 "status": status
             }
@@ -420,7 +442,7 @@ class TaskManagerApp:
         ttk.Label(info_frame, text=f"Название: {task['title']}").pack(anchor=tk.W)
         ttk.Label(info_frame, text=f"Статус: {task['status']}").pack(anchor=tk.W)
         ttk.Label(info_frame, text=f"Приоритет: {task['priority']}").pack(anchor=tk.W)
-        ttk.Label(info_frame, text=f"Дедлайн: {task['deadline']}").pack(anchor=tk.W)
+        ttk.Label(info_frame, text=f"Дедлайн: {format_datetime(task['deadline'])}").pack(anchor=tk.W)
         
         # Описание
         desc_frame = ttk.LabelFrame(dialog, text="Описание")
@@ -581,7 +603,7 @@ class TaskManagerApp:
             ttk.Label(dialog, text="Статус:").grid(row=4, column=0, padx=10, pady=5, sticky=tk.W)
             status_var = tk.StringVar(value=task["status"])
             ttk.Combobox(dialog, textvariable=status_var, 
-                        values=["To Do", "In Progress", "Done"]).grid(row=4, column=1, padx=10, pady=5, sticky=tk.W)
+                        values=["▢ To Do", "▣ In Progress", "◼ Done"]).grid(row=4, column=1, padx=10, pady=5, sticky=tk.W)
             
             # Кнопки
             button_frame = ttk.Frame(dialog)
