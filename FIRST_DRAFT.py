@@ -110,16 +110,20 @@ class TaskManagerApp:
         self.kanban_inner_frame = ttk.Frame(self.kanban_canvas)
         self.kanban_canvas.create_window((0, 0), window=self.kanban_inner_frame, anchor="nw")
         
-        # создать колонки
+        # Создаем колонки с фиксированным порядком
         self.kanban_columns = {}
         for i, column in enumerate(columns):
             frame = ttk.LabelFrame(self.kanban_inner_frame, text=column)
             frame.grid(row=0, column=i, padx=10, pady=10, sticky="nsew")
             self.kanban_columns[column] = frame
         
-        # кнопка добавления задачи
+        # Кнопка добавления задачи
         add_button = ttk.Button(self.kanban_inner_frame, text="Добавить задачу", command=self.show_add_task_dialog)
         add_button.grid(row=1, column=0, columnspan=len(columns), pady=10)
+        
+        # Настройка веса колонок для правильного растягивания
+        for i in range(len(columns)):
+            self.kanban_inner_frame.columnconfigure(i, weight=1)
     
     def setup_calendar(self):
         # простой календарь для демонстрации
@@ -238,7 +242,6 @@ class TaskManagerApp:
             messagebox.showerror("Ошибка", f"Не удалось загрузить данные: {str(e)}")
     
     def load_users(self):
-        """Загрузка пользователей из Supabase"""
         try:
             users = supabase_client.table("User").select("*").execute().data
             self.users_tree.delete(*self.users_tree.get_children())
@@ -253,7 +256,6 @@ class TaskManagerApp:
             messagebox.showerror("Ошибка", f"Не удалось загрузить пользователей: {str(e)}")
     
     def add_task_to_kanban(self, task):
-        """Добавление задачи на Kanban доску"""
         frame = ttk.Frame(self.kanban_columns[task["status"]])
         frame.pack(fill=tk.X, padx=5, pady=5)
         
@@ -266,21 +268,25 @@ class TaskManagerApp:
         button_frame = ttk.Frame(frame)
         button_frame.pack(fill=tk.X)
         
-        # Кнопки для перемещения между статусами
-        if task["status"] != "▢ To Do":
-            ttk.Button(button_frame, text="□", width=3, 
-                      command=lambda t=task: self.change_task_status(t, "▢ To Do")).pack(side=tk.LEFT)
+        # Определяем доступные направления перемещения
+        statuses = list(self.kanban_columns.keys())
+        current_index = statuses.index(task["status"])
         
-        if task["status"] != "▣ In Progress":
-            ttk.Button(button_frame, text="◩", width=3, 
-                      command=lambda t=task: self.change_task_status(t, "▣ In Progress")).pack(side=tk.LEFT)
+        # Стрелка влево (если не первый столбец)
+        if current_index > 0:
+            prev_status = statuses[current_index - 1]
+            ttk.Button(button_frame, text="←", width=3, 
+                    command=lambda t=task, s=prev_status: self.change_task_status(t, s)).pack(side=tk.LEFT)
         
-        if task["status"] != "◼ Done":
-            ttk.Button(button_frame, text="◼", width=3, 
-                      command=lambda t=task: self.change_task_status(t, "◼ Done")).pack(side=tk.LEFT)
+        # Стрелка вправо (если не последний столбец)
+        if current_index < len(statuses) - 1:
+            next_status = statuses[current_index + 1]
+            ttk.Button(button_frame, text="→", width=3, 
+                    command=lambda t=task, s=next_status: self.change_task_status(t, s)).pack(side=tk.LEFT)
         
+        # Кнопка подробнее
         ttk.Button(button_frame, text="...", width=3, 
-                  command=lambda t=task: self.show_task_details(t)).pack(side=tk.RIGHT)
+                command=lambda t=task: self.show_task_details(t)).pack(side=tk.RIGHT)
     
     def update_calendar(self, tasks):
         """Обновление календаря задачами"""
@@ -416,7 +422,6 @@ class TaskManagerApp:
             messagebox.showerror("Ошибка", f"Не удалось добавить задачу: {str(e)}")
     
     def show_task_details(self, task=None, event=None):
-        """Просмотр деталей задачи"""
         if event:
             # Если вызвано двойным кликом по списку задач
             selected_item = self.tasks_tree.focus()
@@ -522,7 +527,7 @@ class TaskManagerApp:
             self.show_task_details({"id": task_id})
             
         except Exception as e:
-            messagebox.showerror("Ошибка", f"Не удалось добавить комментарий: {str(e)}")
+            messagebox.showerror("Ошибка", f"Не удалось добавить комментарий: {e}")
     
     def upload_file(self, task_id, dialog):
         """Загрузка файла для задачи"""
