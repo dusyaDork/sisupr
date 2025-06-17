@@ -268,16 +268,16 @@ class TaskManagerApp:
         
         # Кнопки для перемещения между статусами
         if task["status"] != "▢ To Do":
-            ttk.Button(button_frame, text="▢", width=3, 
+            ttk.Button(button_frame, text="□", width=3, 
                       command=lambda t=task: self.change_task_status(t, "▢ To Do")).pack(side=tk.LEFT)
         
         if task["status"] != "▣ In Progress":
-            ttk.Button(button_frame, text="▣", width=3, 
+            ttk.Button(button_frame, text="◩", width=3, 
                       command=lambda t=task: self.change_task_status(t, "▣ In Progress")).pack(side=tk.LEFT)
         
         if task["status"] != "◼ Done":
             ttk.Button(button_frame, text="◼", width=3, 
-                      command=lambda t=task: self.change_task_status(t, "Done")).pack(side=tk.LEFT)
+                      command=lambda t=task: self.change_task_status(t, "◼ Done")).pack(side=tk.LEFT)
         
         ttk.Button(button_frame, text="...", width=3, 
                   command=lambda t=task: self.show_task_details(t)).pack(side=tk.RIGHT)
@@ -791,8 +791,8 @@ class TaskManagerApp:
         except Exception as e:
             print(f"Ошибка при проверке уведомлений: {e}")
         
-        # Повторяем проверку через 1 минуту
-        self.root.after(60000, self.check_notifications)
+        # Повторяем проверку через 1 секунду
+        self.root.after(1000, self.check_notifications)
 
 if __name__ == "__main__":
     root = tk.Tk()
