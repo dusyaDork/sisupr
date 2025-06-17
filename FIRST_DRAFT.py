@@ -95,7 +95,6 @@ class TaskManagerApp:
         self.check_notifications()
     
     def setup_kanban(self):
-        """Настройка Kanban доски"""
         columns = ["To Do", "In Progress", "Done"]
         
         self.kanban_canvas = tk.Canvas(self.kanban_frame)
@@ -123,7 +122,7 @@ class TaskManagerApp:
         
         # Настройка веса колонок для правильного растягивания
         for i in range(len(columns)):
-            self.kanban_inner_frame.columnconfigure(i, weight=1)
+            self.kanban_inner_frame.columnconfigure(i, weight=1, minsize=250)
     
     def setup_calendar(self):
         # простой календарь для демонстрации
