@@ -1,2 +1,2 @@
 ## Система управления задачами 
-its a project for summer practice of june 2026
+its a project for summer practice of june 2025
