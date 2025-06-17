@@ -96,7 +96,7 @@ class TaskManagerApp:
     
     def setup_kanban(self):
         """Настройка Kanban доски"""
-        columns = ["▢ To Do", "▣ In Progress", "◼ Done"]
+        columns = ["To Do", "In Progress", "Done"]
         
         self.kanban_canvas = tk.Canvas(self.kanban_frame)
         self.kanban_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -348,9 +348,9 @@ class TaskManagerApp:
                     values=["Низкий", "Средний", "Высокий", "Критический"]).grid(row=3, column=1, padx=10, pady=5, sticky=tk.W)
         
         ttk.Label(dialog, text="Статус:").grid(row=4, column=0, padx=10, pady=5, sticky=tk.W)
-        status_var = tk.StringVar(value="▢ To Do")
+        status_var = tk.StringVar(value="To Do")
         ttk.Combobox(dialog, textvariable=status_var, 
-                    values=["▢ To Do", "▣ In Progress", "◼ Done"]).grid(row=4, column=1, padx=10, pady=5, sticky=tk.W)
+                    values=["To Do", "In Progress", "Done"]).grid(row=4, column=1, padx=10, pady=5, sticky=tk.W)
         
         # Назначение исполнителей (если есть пользователи)
         try:
@@ -422,69 +422,87 @@ class TaskManagerApp:
             messagebox.showerror("Ошибка", f"Не удалось добавить задачу: {str(e)}")
     
     def show_task_details(self, task=None, event=None):
+        # Получаем задачу, если вызвано двойным кликом
         if event:
-            # Если вызвано двойным кликом по списку задач
             selected_item = self.tasks_tree.focus()
+            if not selected_item:
+                return
             task_id = self.tasks_tree.item(selected_item)["values"][0]
-            
             try:
                 task = supabase_client.table("Task").select("*").eq("id", task_id).execute().data[0]
             except Exception as e:
                 messagebox.showerror("Ошибка", f"Не удалось загрузить задачу: {str(e)}")
                 return
-        
-        if not task:
+
+        if not task or "id" not in task:
+            messagebox.showerror("Ошибка", "Задача не найдена")
             return
-        
+
+        # Создаем диалог с актуальными данными
         dialog = tk.Toplevel(self.root)
-        dialog.title(f"Задача: {task['title']}")
-        dialog.geometry("600x500")
+        dialog.title(f"Задача: {task.get('title', 'Новая задача')}")
+        dialog.geometry("700x600")
         
+        # Сохраняем ID задачи для обновления
+        dialog.task_id = task["id"]
+
         # Основная информация
         info_frame = ttk.LabelFrame(dialog, text="Информация о задаче")
         info_frame.pack(fill=tk.X, padx=10, pady=5)
         
-        ttk.Label(info_frame, text=f"Название: {task['title']}").pack(anchor=tk.W)
-        ttk.Label(info_frame, text=f"Статус: {task['status']}").pack(anchor=tk.W)
-        ttk.Label(info_frame, text=f"Приоритет: {task['priority']}").pack(anchor=tk.W)
-        ttk.Label(info_frame, text=f"Дедлайн: {format_datetime(task['deadline'])}").pack(anchor=tk.W)
-        
-        # Описание
-        desc_frame = ttk.LabelFrame(dialog, text="Описание")
-        desc_frame.pack(fill=tk.X, padx=10, pady=5)
-        
-        desc_text = tk.Text(desc_frame, height=5, wrap=tk.WORD)
-        desc_text.insert(tk.END, task["description"])
-        desc_text.config(state=tk.DISABLED)
-        desc_text.pack(fill=tk.X, padx=5, pady=5)
-        
+        ttk.Label(info_frame, text=f"Название: {task.get('title', '')}").pack(anchor=tk.W)
+        ttk.Label(info_frame, text=f"Статус: {task.get('status', '')}").pack(anchor=tk.W)
+        ttk.Label(info_frame, text=f"Приоритет: {task.get('priority', '')}").pack(anchor=tk.W)
+        ttk.Label(info_frame, text=f"Дедлайн: {format_datetime(task.get('deadline', ''))}").pack(anchor=tk.W)
+
         # Комментарии
         comments_frame = ttk.LabelFrame(dialog, text="Комментарии")
         comments_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
         
+        # Поле для прокрутки комментариев
+        comments_canvas = tk.Canvas(comments_frame)
+        scrollbar = ttk.Scrollbar(comments_frame, orient="vertical", command=comments_canvas.yview)
+        scrollable_frame = ttk.Frame(comments_canvas)
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: comments_canvas.configure(
+                scrollregion=comments_canvas.bbox("all")
+            )
+        )
+        
+        comments_canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        comments_canvas.configure(yscrollcommand=scrollbar.set)
+        
+        comments_canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
         # Загрузка комментариев
         try:
             comments = supabase_client.table("Comment").select("*, User(name)").eq("task_id", task["id"]).execute().data
-            
             for comment in comments:
-                comment_frame = ttk.Frame(comments_frame)
+                comment_frame = ttk.Frame(scrollable_frame)
                 comment_frame.pack(fill=tk.X, padx=5, pady=2)
                 
-                ttk.Label(comment_frame, text=f"{comment['User']['name']}: {comment['text']}", 
-                         wraplength=500, justify=tk.LEFT).pack(anchor=tk.W)
+                ttk.Label(comment_frame, 
+                        text=f"{comment['User']['name']} ({comment.get('created_at', '')}):",
+                        font=('Arial', 9, 'bold')).pack(anchor=tk.W)
+                ttk.Label(comment_frame, 
+                        text=comment['text'],
+                        wraplength=600,
+                        justify=tk.LEFT).pack(anchor=tk.W)
         except Exception as e:
-            print(f"Ошибка при загрузке комментариев: {e}")
-        
-        # Добавление нового комментария
+            ttk.Label(scrollable_frame, text=f"Ошибка загрузки комментариев: {str(e)}").pack()
+
+        # Поле для нового комментария
         new_comment_frame = ttk.Frame(dialog)
         new_comment_frame.pack(fill=tk.X, padx=10, pady=5)
         
-        comment_entry = ttk.Entry(new_comment_frame, width=50)
-        comment_entry.pack(side=tk.LEFT, padx=5)
+        self.comment_entry = ttk.Entry(new_comment_frame)
+        self.comment_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
         
-        ttk.Button(new_comment_frame, text="Добавить", 
-                  command=lambda: self.add_comment(task["id"], comment_entry.get(), dialog)).pack(side=tk.LEFT)
-        
+        ttk.Button(new_comment_frame, text="Добавить",
+                command=lambda: self.add_comment(dialog)).pack(side=tk.LEFT)
         # Файлы
         files_frame = ttk.LabelFrame(dialog, text="Файлы")
         files_frame.pack(fill=tk.X, padx=10, pady=5)
@@ -510,22 +528,70 @@ class TaskManagerApp:
         ttk.Button(add_file_frame, text="Добавить файл", 
                   command=lambda: self.upload_file(task["id"], dialog)).pack(side=tk.LEFT)
     
-    def add_comment(self, task_id, text, dialog):
+    def add_comment(self, dialog):
+        text = self.comment_entry.get().strip()
         if not text:
-            messagebox.showerror("Ошибка", "Комментарий не может быть пустым")
+            messagebox.showwarning("Предупреждение", "Введите текст комментария")
             return
         
         try:
-            supabase_client.table("Comment").insert({
-                "task_id": task_id,
+            # Добавляем комментарий
+            response = supabase_client.table("Comment").insert({
+                "task_id": dialog.task_id,
                 "user_id": self.current_user["id"],
                 "text": text
             }).execute()
             
-            # Обновляем диалог
-            dialog.destroy()
-            self.show_task_details({"id": task_id})
-            
+            if response.data:
+                # Очищаем поле ввода
+                self.comment_entry.delete(0, tk.END)
+                
+                # Обновляем список комментариев без пересоздания окна
+                for widget in dialog.winfo_children():
+                    if isinstance(widget, ttk.LabelFrame) and widget["text"] == "Комментарии":
+                        widget.destroy()
+                        break
+                
+                # Пересоздаем фрейм комментариев
+                comments_frame = ttk.LabelFrame(dialog, text="Комментарии")
+                comments_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+                
+                # Прокручиваемый фрейм (как в show_task_details)
+                comments_canvas = tk.Canvas(comments_frame)
+                scrollbar = ttk.Scrollbar(comments_frame, orient="vertical", command=comments_canvas.yview)
+                scrollable_frame = ttk.Frame(comments_canvas)
+                
+                scrollable_frame.bind(
+                    "<Configure>",
+                    lambda e: comments_canvas.configure(
+                        scrollregion=comments_canvas.bbox("all")
+                    )
+                )
+                
+                comments_canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+                comments_canvas.configure(yscrollcommand=scrollbar.set)
+                
+                comments_canvas.pack(side="left", fill="both", expand=True)
+                scrollbar.pack(side="right", fill="y")
+
+                # Загружаем обновленные комментарии
+                comments = supabase_client.table("Comment").select("*, User(name)").eq("task_id", dialog.task_id).execute().data
+                for comment in comments:
+                    comment_frame = ttk.Frame(scrollable_frame)
+                    comment_frame.pack(fill=tk.X, padx=5, pady=2)
+                    
+                    ttk.Label(comment_frame, 
+                            text=f"{comment['User']['name']} ({comment.get('created_at', '')}):",
+                            font=('Arial', 9, 'bold')).pack(anchor=tk.W)
+                    ttk.Label(comment_frame, 
+                            text=comment['text'],
+                            wraplength=600,
+                            justify=tk.LEFT).pack(anchor=tk.W)
+                
+                messagebox.showinfo("Успех", "Комментарий успешно добавлен")
+            else:
+                raise Exception("Не удалось добавить комментарий")
+                
         except Exception as e:
             messagebox.showerror("Ошибка", f"Не удалось добавить комментарий: {str(e)}")
     
@@ -608,7 +674,7 @@ class TaskManagerApp:
             ttk.Label(dialog, text="Статус:").grid(row=4, column=0, padx=10, pady=5, sticky=tk.W)
             status_var = tk.StringVar(value=task["status"])
             ttk.Combobox(dialog, textvariable=status_var, 
-                        values=["▢ To Do", "▣ In Progress", "◼ Done"]).grid(row=4, column=1, padx=10, pady=5, sticky=tk.W)
+                        values=["To Do", "In Progress", "Done"]).grid(row=4, column=1, padx=10, pady=5, sticky=tk.W)
             
             # Кнопки
             button_frame = ttk.Frame(dialog)
