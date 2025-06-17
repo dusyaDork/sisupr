@@ -456,32 +456,32 @@ class TaskManagerApp:
         ttk.Label(info_frame, text=f"Дедлайн: {format_datetime(task.get('deadline', ''))}").pack(anchor=tk.W)
 
         # Комментарии
-        comments_frame = ttk.LabelFrame(dialog, text="Комментарии")
-        comments_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        dialog.comments_frame = ttk.LabelFrame(dialog, text="Комментарии")
+        dialog.comments_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
         
         # Поле для прокрутки комментариев
-        comments_canvas = tk.Canvas(comments_frame)
-        scrollbar = ttk.Scrollbar(comments_frame, orient="vertical", command=comments_canvas.yview)
-        scrollable_frame = ttk.Frame(comments_canvas)
+        dialog.comments_canvas = tk.Canvas(dialog.comments_frame)
+        dialog.comments_scrollbar = ttk.Scrollbar(dialog.comments_frame, orient="vertical", command=dialog.comments_canvas.yview)
+        dialog.scrollable_frame = ttk.Frame(dialog.comments_canvas)
         
-        scrollable_frame.bind(
+        dialog.scrollable_frame.bind(
             "<Configure>",
-            lambda e: comments_canvas.configure(
-                scrollregion=comments_canvas.bbox("all")
+            lambda e: dialog.comments_canvas.configure(
+                scrollregion=dialog.comments_canvas.bbox("all")
             )
         )
         
-        comments_canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-        comments_canvas.configure(yscrollcommand=scrollbar.set)
+        dialog.comments_canvas.create_window((0, 0), window=dialog.scrollable_frame, anchor="nw")
+        dialog.comments_canvas.configure(yscrollcommand=dialog.comments_scrollbar.set)
         
-        comments_canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
+        dialog.comments_canvas.pack(side="left", fill="both", expand=True)
+        dialog.comments_scrollbar.pack(side="right", fill="y")
 
         # Загрузка комментариев
         try:
             comments = supabase_client.table("Comment").select("*, User(name)").eq("task_id", task["id"]).execute().data
             for comment in comments:
-                comment_frame = ttk.Frame(scrollable_frame)
+                comment_frame = ttk.Frame(dialog.scrollable_frame)
                 comment_frame.pack(fill=tk.X, padx=5, pady=2)
                 
                 ttk.Label(comment_frame, 
@@ -492,7 +492,7 @@ class TaskManagerApp:
                         wraplength=600,
                         justify=tk.LEFT).pack(anchor=tk.W)
         except Exception as e:
-            ttk.Label(scrollable_frame, text=f"Ошибка загрузки комментариев: {str(e)}").pack()
+            ttk.Label(dialog.scrollable_frame, text=f"Ошибка загрузки комментариев: {str(e)}").pack()
 
         # Поле для нового комментария
         new_comment_frame = ttk.Frame(dialog)
@@ -549,44 +549,37 @@ class TaskManagerApp:
                 # Обновляем список комментариев без пересоздания окна
                 for widget in dialog.winfo_children():
                     if isinstance(widget, ttk.LabelFrame) and widget["text"] == "Комментарии":
-                        widget.destroy()
+                        for child in widget.winfo_children():
+                            if isinstance(child, tk.Canvas):
+                                canvas = child
+                                for item in canvas.winfo_children():
+                                    if isinstance(item, ttk.Frame):
+                                        scrollable_frame = item
+                                        break
+                                break
                         break
                 
-                # Пересоздаем фрейм комментариев
-                comments_frame = ttk.LabelFrame(dialog, text="Комментарии")
-                comments_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
-                
-                # Прокручиваемый фрейм (как в show_task_details)
-                comments_canvas = tk.Canvas(comments_frame)
-                scrollbar = ttk.Scrollbar(comments_frame, orient="vertical", command=comments_canvas.yview)
-                scrollable_frame = ttk.Frame(comments_canvas)
-                
-                scrollable_frame.bind(
-                    "<Configure>",
-                    lambda e: comments_canvas.configure(
-                        scrollregion=comments_canvas.bbox("all")
-                    )
-                )
-                
-                comments_canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-                comments_canvas.configure(yscrollcommand=scrollbar.set)
-                
-                comments_canvas.pack(side="left", fill="both", expand=True)
-                scrollbar.pack(side="right", fill="y")
-
-                # Загружаем обновленные комментарии
-                comments = supabase_client.table("Comment").select("*, User(name)").eq("task_id", dialog.task_id).execute().data
-                for comment in comments:
-                    comment_frame = ttk.Frame(scrollable_frame)
-                    comment_frame.pack(fill=tk.X, padx=5, pady=2)
+                # Добавляем новый комментарий в существующий scrollable_frame
+                try:
+                    # Получаем имя пользователя
+                    user = supabase_client.table("User").select("name").eq("id", self.current_user["id"]).execute().data[0]
+                    user_name = user["name"]
+                except:
+                    user_name = "Неизвестный"
                     
-                    ttk.Label(comment_frame, 
-                            text=f"{comment['User']['name']} ({comment.get('created_at', '')}):",
-                            font=('Arial', 9, 'bold')).pack(anchor=tk.W)
-                    ttk.Label(comment_frame, 
-                            text=comment['text'],
-                            wraplength=600,
-                            justify=tk.LEFT).pack(anchor=tk.W)
+                comment_frame = ttk.Frame(scrollable_frame)
+                comment_frame.pack(fill=tk.X, padx=5, pady=2)  # Убрали параметр before
+                
+                ttk.Label(comment_frame, 
+                        text=f"{user_name} ({datetime.now().strftime('%Y-%m-%d %H:%M')}):",
+                        font=('Arial', 9, 'bold')).pack(anchor=tk.W)
+                ttk.Label(comment_frame, 
+                        text=text,
+                        wraplength=600,
+                        justify=tk.LEFT).pack(anchor=tk.W)
+                
+                # Прокручиваем к новому комментарию (вниз)
+                canvas.yview_moveto(1)
                 
                 messagebox.showinfo("Успех", "Комментарий успешно добавлен")
             else:
