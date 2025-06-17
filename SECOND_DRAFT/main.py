@@ -5,7 +5,7 @@ import datetime
 from task_management import TaskManager
 from user_management import UserManager
 from kanban_board import KanbanBoard
-from calendar_view import CalendarView
+from SECOND_DRAFT.calendar_view import CalendarView
 from notification_system import NotificationSystem
 
 class TaskManagementApp:

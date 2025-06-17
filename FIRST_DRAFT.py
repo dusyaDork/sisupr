@@ -185,7 +185,7 @@ class TaskManagerApp:
         """Загрузка данных из Supabase"""
         try:
             # Загрузка задач
-            tasks = supabase_client.table("task").select("*").execute().data
+            tasks = supabase_client.table("Task").select("*").execute().data
             
             # Очистка существующих данных
             for column in self.kanban_columns.values():
@@ -375,12 +375,12 @@ class TaskManagerApp:
                 "status": status
             }
             
-            response = supabase_client.table("task").insert(task_data).execute()
+            response = supabase_client.table("Task").insert(task_data).execute()
             task_id = response.data[0]["id"]
             
             # Назначение исполнителей
             for user_id in assignees:
-                supabase_client.table("taskassignment").insert({
+                supabase_client.table("TaskAssignment").insert({
                     "task_id": task_id,
                     "user_id": user_id
                 }).execute()
@@ -401,7 +401,7 @@ class TaskManagerApp:
             task_id = self.tasks_tree.item(selected_item)["values"][0]
             
             try:
-                task = supabase_client.table("task").select("*").eq("id", task_id).execute().data[0]
+                task = supabase_client.table("Task").select("*").eq("id", task_id).execute().data[0]
             except Exception as e:
                 messagebox.showerror("Ошибка", f"Не удалось загрузить задачу: {str(e)}")
                 return
@@ -437,7 +437,7 @@ class TaskManagerApp:
         
         # Загрузка комментариев
         try:
-            comments = supabase_client.table("comment").select("*, User(name)").eq("task_id", task["id"]).execute().data
+            comments = supabase_client.table("Comment").select("*, User(name)").eq("task_id", task["id"]).execute().data
             
             for comment in comments:
                 comment_frame = ttk.Frame(comments_frame)
@@ -464,7 +464,7 @@ class TaskManagerApp:
         
         # Загрузка файлов
         try:
-            files = supabase_client.table("file").select("*").eq("task_id", task["id"]).execute().data
+            files = supabase_client.table("File").select("*").eq("task_id", task["id"]).execute().data
             
             for file in files:
                 file_frame = ttk.Frame(files_frame)
@@ -489,7 +489,7 @@ class TaskManagerApp:
             return
         
         try:
-            supabase_client.table("comment").insert({
+            supabase_client.table("Comment").insert({
                 "task_id": task_id,
                 "user_id": self.current_user["id"],
                 "text": text
@@ -514,7 +514,7 @@ class TaskManagerApp:
             # В реальном приложении здесь должна быть загрузка файла в Supabase Storage
             # Для демонстрации просто сохраняем информацию о файле в таблицу File
             
-            supabase_client.table("file").insert({
+            supabase_client.table("File").insert({
                 "task_id": task_id,
                 "filename": filename,
                 "path": filepath  # В реальном приложении это должен быть путь в Storage
@@ -536,7 +536,7 @@ class TaskManagerApp:
     def change_task_status(self, task, new_status):
         """Изменение статуса задачи"""
         try:
-            supabase_client.table("task").update({"status": new_status}).eq("id", task["id"]).execute()
+            supabase_client.table("Task").update({"status": new_status}).eq("id", task["id"]).execute()
             self.load_data()
         except Exception as e:
             messagebox.showerror("Ошибка", f"Не удалось изменить статус: {str(e)}")
@@ -551,7 +551,7 @@ class TaskManagerApp:
         task_id = self.tasks_tree.item(selected_item)["values"][0]
         
         try:
-            task = supabase_client.table("task").select("*").eq("id", task_id).execute().data[0]
+            task = supabase_client.table("Task").select("*").eq("id", task_id).execute().data[0]
             
             # Диалог редактирования (аналогично добавлению)
             dialog = tk.Toplevel(self.root)
@@ -606,7 +606,7 @@ class TaskManagerApp:
     def update_task(self, task_id, title, description, deadline, priority, status, dialog):
         """Обновление задачи в базе данных"""
         try:
-            supabase_client.table("task").update({
+            supabase_client.table("Task").update({
                 "title": title,
                 "description": description,
                 "deadline": deadline,
@@ -632,7 +632,7 @@ class TaskManagerApp:
         
         if messagebox.askyesno("Подтверждение", "Вы уверены, что хотите удалить эту задачу?"):
             try:
-                supabase_client.table("task").delete().eq("id", task_id).execute()
+                supabase_client.table("Task").delete().eq("id", task_id).execute()
                 self.load_data()
                 messagebox.showinfo("Успех", "Задача успешно удалена")
             except Exception as e:
@@ -758,13 +758,13 @@ class TaskManagerApp:
     def check_notifications(self):
         """Проверка уведомлений"""
         try:
-            notifications = supabase_client.table("notification").select("*").eq("user_id", self.current_user["id"]).eq("is_read", False).execute().data
+            notifications = supabase_client.table("Notification").select("*").eq("user_id", self.current_user["id"]).eq("is_read", False).execute().data
             
             for notification in notifications:
                 messagebox.showinfo("Уведомление", notification["message"])
                 
                 # Помечаем уведомление как прочитанное
-                supabase_client.table("notification").update({"is_read": True}).eq("id", notification["id"]).execute()
+                supabase_client.table("Notification").update({"is_read": True}).eq("id", notification["id"]).execute()
                 
         except Exception as e:
             print(f"Ошибка при проверке уведомлений: {e}")
