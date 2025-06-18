@@ -30,14 +30,133 @@ def parse_datetime(dt_str):
     except:
         return dt_str
 
-class TaskManagerApp:
+class LoginApp:
     def __init__(self, root):
+        self.root = root
+        self.root.title("Вход в систему")
+        self.root.geometry("400x300")
+        
+        # Стили
+        self.style = ttk.Style()
+        self.style.configure("TFrame", background="#f0f0f0")
+        self.style.configure("TLabel", background="#f0f0f0", font=("Arial", 10))
+        self.style.configure("TButton", font=("Arial", 10))
+        
+        # Основной фрейм
+        self.main_frame = ttk.Frame(root)
+        self.main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        
+        # Заголовок
+        ttk.Label(self.main_frame, text="Вход в систему управления задачами", 
+                 font=("Arial", 12, "bold")).pack(pady=20)
+        
+        # Поля ввода
+        input_frame = ttk.Frame(self.main_frame)
+        input_frame.pack(pady=10)
+        
+        ttk.Label(input_frame, text="Имя:").grid(row=0, column=0, padx=5, pady=5, sticky=tk.E)
+        self.name_entry = ttk.Entry(input_frame, width=25)
+        self.name_entry.grid(row=0, column=1, padx=5, pady=5)
+        
+        ttk.Label(input_frame, text="Email:").grid(row=1, column=0, padx=5, pady=5, sticky=tk.E)
+        self.email_entry = ttk.Entry(input_frame, width=25)
+        self.email_entry.grid(row=1, column=1, padx=5, pady=5)
+        
+        # Кнопки
+        button_frame = ttk.Frame(self.main_frame)
+        button_frame.pack(pady=20)
+        
+        ttk.Button(button_frame, text="Войти", command=self.login).pack(side=tk.LEFT, padx=10)
+        ttk.Button(button_frame, text="Регистрация", command=self.show_register_dialog).pack(side=tk.LEFT, padx=10)
+    
+    def login(self):
+        name = self.name_entry.get().strip()
+        email = self.email_entry.get().strip().lower()
+        
+        if not name or not email:
+            messagebox.showerror("Ошибка", "Введите имя и email")
+            return
+        
+        try:
+            # Ищем пользователя в базе данных
+            response = supabase_client.table("User").select("*").eq("name", name).eq("email", email).execute()
+            
+            if response.data:
+                user = response.data[0]
+                self.root.destroy()  # Закрываем окно входа
+                
+                # Запускаем основное приложение
+                root = tk.Tk()
+                TaskManagerApp(root, user)
+                root.mainloop()
+            else:
+                messagebox.showerror("Ошибка", "Пользователь не найден. Зарегистрируйтесь.")
+                
+        except Exception as e:
+            messagebox.showerror("Ошибка", f"Не удалось войти: {str(e)}")
+    
+    def show_register_dialog(self):
+        """Диалоговое окно регистрации"""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Регистрация")
+        dialog.geometry("400x200")
+        
+        ttk.Label(dialog, text="Имя:").grid(row=0, column=0, padx=10, pady=5, sticky=tk.W)
+        name_entry = ttk.Entry(dialog, width=30)
+        name_entry.grid(row=0, column=1, padx=10, pady=5)
+        
+        ttk.Label(dialog, text="Email:").grid(row=1, column=0, padx=10, pady=5, sticky=tk.W)
+        email_entry = ttk.Entry(dialog, width=30)
+        email_entry.grid(row=1, column=1, padx=10, pady=5)
+        
+        # Кнопки
+        button_frame = ttk.Frame(dialog)
+        button_frame.grid(row=2, column=0, columnspan=2, pady=10)
+        
+        ttk.Button(button_frame, text="Зарегистрироваться", 
+                  command=lambda: self.register_user(
+                      name_entry.get(),
+                      email_entry.get(),
+                      dialog
+                  )).pack(side=tk.LEFT, padx=5)
+        
+        ttk.Button(button_frame, text="Отмена", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+    
+    def register_user(self, name, email, dialog):
+        """Регистрация нового пользователя"""
+        if not name or not email:
+            messagebox.showerror("Ошибка", "Введите имя и email")
+            return
+        
+        try:
+            # Проверяем, нет ли уже пользователя с таким email
+            response = supabase_client.table("User").select("*").eq("email", email).execute()
+            
+            if response.data:
+                messagebox.showerror("Ошибка", "Пользователь с таким email уже существует")
+                return
+            
+            # Добавляем нового пользователя
+            supabase_client.table("User").insert({
+                "name": name,
+                "email": email
+            }).execute()
+            
+            messagebox.showinfo("Успех", "Регистрация прошла успешно. Теперь вы можете войти.")
+            dialog.destroy()
+            
+        except Exception as e:
+            messagebox.showerror("Ошибка", f"Не удалось зарегистрироваться: {str(e)}")
+
+# В классе TaskManagerApp нужно изменить __init__ чтобы принимать пользователя:
+class TaskManagerApp:
+    def __init__(self, root, user):
         self.root = root
         self.root.title("Система управления задачами")
         self.root.geometry("1200x800")
         
-        # текущий пользователь (админ для демонстрации)
-        self.current_user = {"id": 1, "name": "Admin", "email": "admin@example.com"}
+        # Текущий пользователь
+        self.current_user = user
         
         # стили
         self.style = ttk.Style()
@@ -859,5 +978,5 @@ class TaskManagerApp:
 
 if __name__ == "__main__":
     root = tk.Tk()
-    app = TaskManagerApp(root)
+    app = LoginApp(root)
     root.mainloop()
