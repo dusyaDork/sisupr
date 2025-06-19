@@ -10,7 +10,6 @@ SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 supabase_client = supabase.create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def format_datetime(dt_str):
-    """Форматирует строку даты-времени из формата БД в читаемый вид"""
     if not dt_str:
         return ""
     try:
@@ -20,7 +19,6 @@ def format_datetime(dt_str):
         return dt_str
 
 def parse_datetime(dt_str):
-    """Преобразует строку даты-времени в формат БД"""
     if not dt_str:
         return None
     try:
@@ -35,21 +33,21 @@ class LoginApp:
         self.root.title("Вход в систему")
         self.root.geometry("400x300")
         
-        # Стили
+        # стили
         self.style = ttk.Style()
         self.style.configure("TFrame", background="#f0f0f0")
         self.style.configure("TLabel", background="#f0f0f0", font=("Arial", 10))
         self.style.configure("TButton", font=("Arial", 10))
         
-        # Основной фрейм
+        # основной фрейм
         self.main_frame = ttk.Frame(root)
         self.main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
         
-        # Заголовок
+        # заголовок
         ttk.Label(self.main_frame, text="Вход в систему управления задачами", 
                  font=("Arial", 12, "bold")).pack(pady=20)
         
-        # Поля ввода
+        # поля
         input_frame = ttk.Frame(self.main_frame)
         input_frame.pack(pady=10)
         
@@ -61,7 +59,7 @@ class LoginApp:
         self.email_entry = ttk.Entry(input_frame, width=25)
         self.email_entry.grid(row=1, column=1, padx=5, pady=5)
         
-        # Кнопки
+        # кнопки
         button_frame = ttk.Frame(self.main_frame)
         button_frame.pack(pady=20)
         
@@ -77,14 +75,13 @@ class LoginApp:
             return
         
         try:
-            # Ищем пользователя в базе данных
+            # ищем пользователя в бд
             response = supabase_client.table("User").select("*").eq("name", name).eq("email", email).execute()
-            
             if response.data:
                 user = response.data[0]
-                self.root.destroy()  # Закрываем окно входа
+                self.root.destroy()
                 
-                # Запускаем основное приложение
+                # запускаем основу
                 root = tk.Tk()
                 TaskManagerApp(root, user)
                 root.mainloop()
@@ -95,7 +92,6 @@ class LoginApp:
             messagebox.showerror("Ошибка", f"Не удалось войти: {str(e)}")
     
     def show_register_dialog(self):
-        """Диалоговое окно регистрации"""
         dialog = tk.Toplevel(self.root)
         dialog.title("Регистрация")
         dialog.geometry("400x200")
@@ -108,7 +104,6 @@ class LoginApp:
         email_entry = ttk.Entry(dialog, width=30)
         email_entry.grid(row=1, column=1, padx=10, pady=5)
         
-        # Кнопки
         button_frame = ttk.Frame(dialog)
         button_frame.grid(row=2, column=0, columnspan=2, pady=10)
         
@@ -122,20 +117,16 @@ class LoginApp:
         ttk.Button(button_frame, text="Отмена", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
     
     def register_user(self, name, email, dialog):
-        """Регистрация нового пользователя"""
         if not name or not email:
             messagebox.showerror("Ошибка", "Введите имя и email")
             return
         
         try:
-            # Проверяем, нет ли уже пользователя с таким email
             response = supabase_client.table("User").select("*").eq("email", email).execute()
-            
             if response.data:
                 messagebox.showerror("Ошибка", "Пользователь с таким email уже существует")
                 return
             
-            # Добавляем нового пользователя
             supabase_client.table("User").insert({
                 "name": name,
                 "email": email
@@ -147,14 +138,12 @@ class LoginApp:
         except Exception as e:
             messagebox.showerror("Ошибка", f"Не удалось зарегистрироваться: {str(e)}")
 
-# В классе TaskManagerApp нужно изменить __init__ чтобы принимать пользователя:
 class TaskManagerApp:
     def __init__(self, root, user):
         self.root = root
         self.root.title("Система управления задачами")
         self.root.geometry("1200x800")
-        
-        # Текущий пользователь
+
         self.current_user = user
         
         # стили
@@ -200,16 +189,16 @@ class TaskManagerApp:
         self.notebook.add(self.tasks_frame, text="Все задачи")
         self.setup_tasks_list()
         
-        # Вкладка Пользователи (только для админа)
-        if self.current_user["id"] == 1:  # Проверка на админа
+        # вкладка Пользователи (только для админа)
+        if self.current_user["id"] == 1:
             self.users_frame = ttk.Frame(self.notebook)
             self.notebook.add(self.users_frame, text="Пользователи")
             self.setup_users_list()
         
-        # Загружаем данные
+        # загружаем данные
         self.load_data()
         
-        # Запускаем проверку уведомлений
+        # запускаем проверку уведомлений
         self.check_notifications()
     
     def setup_kanban(self):
@@ -227,23 +216,21 @@ class TaskManagerApp:
         self.kanban_inner_frame = ttk.Frame(self.kanban_canvas)
         self.kanban_canvas.create_window((0, 0), window=self.kanban_inner_frame, anchor="nw")
         
-        # Создаем колонки с фиксированным порядком
+        # колонки с фиксированным порядком
         self.kanban_columns = {}
         for i, column in enumerate(columns):
             frame = ttk.LabelFrame(self.kanban_inner_frame, text=column)
             frame.grid(row=0, column=i, padx=10, pady=10, sticky="nsew")
             self.kanban_columns[column] = frame
         
-        # Кнопка добавления задачи
         add_button = ttk.Button(self.kanban_inner_frame, text="Добавить задачу", command=self.show_add_task_dialog)
         add_button.grid(row=1, column=0, columnspan=len(columns), pady=10)
         
-        # Настройка веса колонок для правильного растягивания
         for i in range(len(columns)):
             self.kanban_inner_frame.columnconfigure(i, weight=1, minsize=250)
     
     def setup_calendar(self):
-        # простой календарь для демонстрации
+        # простой календарь
         self.calendar_canvas = tk.Canvas(self.calendar_frame)
         self.calendar_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         
@@ -256,10 +243,8 @@ class TaskManagerApp:
         self.calendar_inner_frame = ttk.Frame(self.calendar_canvas)
         self.calendar_canvas.create_window((0, 0), window=self.calendar_inner_frame, anchor="nw")
         
-        # заголовок
         ttk.Label(self.calendar_inner_frame, text="Календарь задач", style="Header.TLabel").pack(pady=10)
         
-        # будет отображение задач по датам
         self.calendar_days_frame = ttk.Frame(self.calendar_inner_frame)
         self.calendar_days_frame.pack(fill=tk.BOTH, expand=True)
     
@@ -284,7 +269,6 @@ class TaskManagerApp:
         self.tasks_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
-        # кнопки управления
         button_frame = ttk.Frame(self.tasks_frame)
         button_frame.pack(fill=tk.X, pady=5)
         
@@ -313,7 +297,6 @@ class TaskManagerApp:
         self.users_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
-        # Кнопки управления
         button_frame = ttk.Frame(self.users_frame)
         button_frame.pack(fill=tk.X, pady=5)
         
@@ -323,23 +306,21 @@ class TaskManagerApp:
         ttk.Button(button_frame, text="Обновить", command=self.load_users).pack(side=tk.LEFT, padx=5)
     
     def load_data(self):
-        """Загрузка данных из Supabase"""
         try:
-            # Загрузка задач
             tasks = supabase_client.table("Task").select("*").execute().data
             
-            # Очистка существующих данных
+            # очистка существующих данных
             for column in self.kanban_columns.values():
                 for widget in column.winfo_children():
                     widget.destroy()
             
             self.tasks_tree.delete(*self.tasks_tree.get_children())
             
-            # Заполнение Kanban доски
+            # заполнение Kanban доски
             for task in tasks:
                 self.add_task_to_kanban(task)
                 
-                # Добавление в список задач
+                # добавление в список задач
                 self.tasks_tree.insert("", tk.END, values=(
                     task["id"],
                     task["title"],
@@ -348,10 +329,9 @@ class TaskManagerApp:
                     task["deadline"]
                 ))
             
-            # Обновление календаря
             self.update_calendar(tasks)
             
-            # Загрузка пользователей (если админ)
+            # загрузка пользователей (если админ)
             if hasattr(self, 'users_tree'):
                 self.load_users()
                 
@@ -376,42 +356,39 @@ class TaskManagerApp:
         frame = ttk.Frame(self.kanban_columns[task["status"]])
         frame.pack(fill=tk.X, padx=5, pady=5)
         
-        # Отображение информации о задаче
         ttk.Label(frame, text=task["title"], font=("Arial", 10, "bold")).pack(anchor=tk.W)
         ttk.Label(frame, text=f"Приоритет: {task['priority']}").pack(anchor=tk.W)
         ttk.Label(frame, text=f"Дедлайн: {format_datetime(task['deadline'])}").pack(anchor=tk.W)
         
-        # Кнопки управления
         button_frame = ttk.Frame(frame)
         button_frame.pack(fill=tk.X)
         
-        # Определяем доступные направления перемещения
+        # определяем доступные направления перемещения
         statuses = list(self.kanban_columns.keys())
         current_index = statuses.index(task["status"])
         
-        # Стрелка влево (если не первый столбец)
+        # стрелка влево
         if current_index > 0:
             prev_status = statuses[current_index - 1]
             ttk.Button(button_frame, text="←", width=3, 
                     command=lambda t=task, s=prev_status: self.change_task_status(t, s)).pack(side=tk.LEFT)
         
-        # Стрелка вправо (если не последний столбец)
+        # стрелка вправо
         if current_index < len(statuses) - 1:
             next_status = statuses[current_index + 1]
             ttk.Button(button_frame, text="→", width=3, 
                     command=lambda t=task, s=next_status: self.change_task_status(t, s)).pack(side=tk.LEFT)
         
-        # Кнопка подробнее
+        # подробнее
         ttk.Button(button_frame, text="...", width=3, 
                 command=lambda t=task: self.show_task_details(t)).pack(side=tk.RIGHT)
     
     def update_calendar(self, tasks):
-        """Обновление календаря задачами"""
-        # Очистка календаря
+        # очистка календаря
         for widget in self.calendar_days_frame.winfo_children():
             widget.destroy()
         
-        # Группировка задач по дате
+        # группировка задач по дате
         tasks_by_date = {}
         for task in tasks:
             deadline = task["deadline"][:10]  # Берем только дату без времени
@@ -419,10 +396,10 @@ class TaskManagerApp:
                 tasks_by_date[deadline] = []
             tasks_by_date[deadline].append(task)
         
-        # Сортировка дат
+        # сортировка дат
         sorted_dates = sorted(tasks_by_date.keys())
         
-        # Отображение задач по датам
+        # отображение задач по датам
         for i, date in enumerate(sorted_dates):
             date_frame = ttk.LabelFrame(self.calendar_days_frame, text=date)
             date_frame.pack(fill=tk.X, padx=10, pady=5)
@@ -440,7 +417,6 @@ class TaskManagerApp:
                           command=lambda t=task: self.show_task_details(t)).pack(side=tk.RIGHT)
     
     def show_add_task_dialog(self):
-        """Диалоговое окно добавления новой задачи"""
         dialog = tk.Toplevel(self.root)
         dialog.title("Добавить задачу")
         dialog.geometry("500x400")
@@ -469,7 +445,6 @@ class TaskManagerApp:
         ttk.Combobox(dialog, textvariable=status_var, 
                     values=["To Do", "In Progress", "Done"]).grid(row=4, column=1, padx=10, pady=5, sticky=tk.W)
         
-        # Назначение исполнителей (если есть пользователи)
         try:
             users = supabase_client.table("User").select("*").execute().data
             if users:
@@ -486,7 +461,6 @@ class TaskManagerApp:
         except Exception as e:
             print(f"Ошибка при загрузке пользователей: {e}")
         
-        # Кнопки
         button_frame = ttk.Frame(dialog)
         button_frame.grid(row=6, column=0, columnspan=2, pady=10)
         
@@ -504,14 +478,12 @@ class TaskManagerApp:
         ttk.Button(button_frame, text="Отмена", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
     
     def add_task(self, title, description, deadline, priority, status, assignees, dialog):
-        """Добавление новой задачи в базу данных"""
         if not title:
             messagebox.showerror("Ошибка", "Название задачи обязательно")
             return
         
         try:
             formatted_deadline = parse_datetime(deadline)
-            # Добавление задачи
             task_data = {
                 "title": title,
                 "description": description,
@@ -523,14 +495,13 @@ class TaskManagerApp:
             response = supabase_client.table("Task").insert(task_data).execute()
             task_id = response.data[0]["id"]
             
-            # Назначение исполнителей
             for user_id in assignees:
                 supabase_client.table("TaskAssignment").insert({
                     "task_id": task_id,
                     "user_id": user_id
                 }).execute()
             
-            # Обновление интерфейса
+            # обновление интерфейса
             self.load_data()
             dialog.destroy()
             messagebox.showinfo("Успех", "Задача успешно добавлена")
@@ -539,7 +510,7 @@ class TaskManagerApp:
             messagebox.showerror("Ошибка", f"Не удалось добавить задачу: {str(e)}")
     
     def show_task_details(self, task=None, event=None):
-        # Получаем задачу, если вызвано двойным кликом
+        # получаем задачу, если вызвано двойным кликом
         if event:
             selected_item = self.tasks_tree.focus()
             if not selected_item:
@@ -555,15 +526,12 @@ class TaskManagerApp:
             messagebox.showerror("Ошибка", "Задача не найдена")
             return
 
-        # Создаем диалог с актуальными данными
         dialog = tk.Toplevel(self.root)
         dialog.title(f"Задача: {task.get('title', 'Новая задача')}")
         dialog.geometry("700x600")
         
-        # Сохраняем ID задачи для обновления
         dialog.task_id = task["id"]
 
-        # Основная информация
         info_frame = ttk.LabelFrame(dialog, text="Информация о задаче")
         info_frame.pack(fill=tk.X, padx=10, pady=5)
         
@@ -572,11 +540,9 @@ class TaskManagerApp:
         ttk.Label(info_frame, text=f"Приоритет: {task.get('priority', '')}").pack(anchor=tk.W)
         ttk.Label(info_frame, text=f"Дедлайн: {format_datetime(task.get('deadline', ''))}").pack(anchor=tk.W)
 
-        # Комментарии
         dialog.comments_frame = ttk.LabelFrame(dialog, text="Комментарии")
         dialog.comments_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
-        
-        # Поле для прокрутки комментариев
+
         dialog.comments_canvas = tk.Canvas(dialog.comments_frame)
         dialog.comments_scrollbar = ttk.Scrollbar(dialog.comments_frame, orient="vertical", command=dialog.comments_canvas.yview)
         dialog.scrollable_frame = ttk.Frame(dialog.comments_canvas)
@@ -594,7 +560,6 @@ class TaskManagerApp:
         dialog.comments_canvas.pack(side="left", fill="both", expand=True)
         dialog.comments_scrollbar.pack(side="right", fill="y")
 
-        # Загрузка комментариев
         try:
             comments = supabase_client.table("Comment").select("*, User(name)").eq("task_id", task["id"]).execute().data
             for comment in comments:
@@ -611,7 +576,6 @@ class TaskManagerApp:
         except Exception as e:
             ttk.Label(dialog.scrollable_frame, text=f"Ошибка загрузки комментариев: {str(e)}").pack()
 
-        # Поле для нового комментария
         new_comment_frame = ttk.Frame(dialog)
         new_comment_frame.pack(fill=tk.X, padx=10, pady=5)
         
@@ -620,11 +584,10 @@ class TaskManagerApp:
         
         ttk.Button(new_comment_frame, text="Добавить",
                 command=lambda: self.add_comment(dialog)).pack(side=tk.LEFT)
-        # Файлы
+        
         files_frame = ttk.LabelFrame(dialog, text="Файлы")
         files_frame.pack(fill=tk.X, padx=10, pady=5)
-        
-        # Загрузка файлов
+
         try:
             files = supabase_client.table("File").select("*").eq("task_id", task["id"]).execute().data
             
@@ -637,8 +600,7 @@ class TaskManagerApp:
                           command=lambda f=file: self.download_file(f)).pack(side=tk.RIGHT)
         except Exception as e:
             print(f"Ошибка при загрузке файлов: {e}")
-        
-        # Добавление нового файла
+
         add_file_frame = ttk.Frame(dialog)
         add_file_frame.pack(fill=tk.X, padx=10, pady=5)
         
@@ -652,7 +614,6 @@ class TaskManagerApp:
             return
         
         try:
-            # Добавляем комментарий
             response = supabase_client.table("Comment").insert({
                 "task_id": dialog.task_id,
                 "user_id": self.current_user["id"],
@@ -660,10 +621,9 @@ class TaskManagerApp:
             }).execute()
             
             if response.data:
-                # Очищаем поле ввода
                 self.comment_entry.delete(0, tk.END)
                 
-                # Обновляем список комментариев без пересоздания окна
+                # обновляем список комментариев без пересоздания окна
                 for widget in dialog.winfo_children():
                     if isinstance(widget, ttk.LabelFrame) and widget["text"] == "Комментарии":
                         for child in widget.winfo_children():
@@ -676,16 +636,15 @@ class TaskManagerApp:
                                 break
                         break
                 
-                # Добавляем новый комментарий в существующий scrollable_frame
+                # добавляем новый комментарий в существующий scrollable_frame
                 try:
-                    # Получаем имя пользователя
                     user = supabase_client.table("User").select("name").eq("id", self.current_user["id"]).execute().data[0]
                     user_name = user["name"]
                 except:
                     user_name = "Неизвестный"
                     
                 comment_frame = ttk.Frame(scrollable_frame)
-                comment_frame.pack(fill=tk.X, padx=5, pady=2)  # Убрали параметр before
+                comment_frame.pack(fill=tk.X, padx=5, pady=2)
                 
                 ttk.Label(comment_frame, 
                         text=f"{user_name} ({datetime.now().strftime('%Y-%m-%d %H:%M')}):",
@@ -695,7 +654,6 @@ class TaskManagerApp:
                         wraplength=600,
                         justify=tk.LEFT).pack(anchor=tk.W)
                 
-                # Прокручиваем к новому комментарию (вниз)
                 canvas.yview_moveto(1)
                 
                 messagebox.showinfo("Успех", "Комментарий успешно добавлен")
@@ -706,7 +664,6 @@ class TaskManagerApp:
             messagebox.showerror("Ошибка", f"Не удалось добавить комментарий: {str(e)}")
     
     def upload_file(self, task_id, dialog):
-        """Загрузка файла для задачи"""
         filepath = filedialog.askopenfilename()
         if not filepath:
             return
@@ -714,16 +671,15 @@ class TaskManagerApp:
         filename = os.path.basename(filepath)
         
         try:
-            # В реальном приложении здесь должна быть загрузка файла в Supabase Storage
-            # Для демонстрации просто сохраняем информацию о файле в таблицу File
+            # должна быть загрузка файла в Supabase Storage
+            # пока что просто сохраняем информацию о файле в таблицу File
             
             supabase_client.table("File").insert({
                 "task_id": task_id,
                 "filename": filename,
-                "path": filepath  # В реальном приложении это должен быть путь в Storage
+                "path": filepath  # должен быть путь в Storage
             }).execute()
-            
-            # Обновляем диалог
+
             dialog.destroy()
             self.show_task_details({"id": task_id})
             
@@ -731,13 +687,11 @@ class TaskManagerApp:
             messagebox.showerror("Ошибка", f"Не удалось загрузить файл: {str(e)}")
     
     def download_file(self, file):
-        """Скачивание файла"""
-        # В реальном приложении здесь должно быть скачивание из Supabase Storage
-        # Для демонстрации просто показываем сообщение
+        # должно быть скачивание из Supabase Storage
+        # пока что просто показываем сообщение
         messagebox.showinfo("Информация", f"Файл {file['filename']} будет скачан")
     
     def change_task_status(self, task, new_status):
-        """Изменение статуса задачи"""
         try:
             supabase_client.table("Task").update({"status": new_status}).eq("id", task["id"]).execute()
             self.load_data()
@@ -745,7 +699,6 @@ class TaskManagerApp:
             messagebox.showerror("Ошибка", f"Не удалось изменить статус: {str(e)}")
     
     def edit_task(self):
-        """Редактирование выбранной задачи"""
         selected_item = self.tasks_tree.focus()
         if not selected_item:
             messagebox.showwarning("Предупреждение", "Выберите задачу для редактирования")
@@ -756,7 +709,6 @@ class TaskManagerApp:
         try:
             task = supabase_client.table("Task").select("*").eq("id", task_id).execute().data[0]
             
-            # Диалог редактирования (аналогично добавлению)
             dialog = tk.Toplevel(self.root)
             dialog.title("Редактировать задачу")
             dialog.geometry("500x400")
@@ -807,7 +759,6 @@ class TaskManagerApp:
             messagebox.showerror("Ошибка", f"Не удалось загрузить задачу для редактирования: {str(e)}")
     
     def update_task(self, task_id, title, description, deadline, priority, status, dialog):
-        """Обновление задачи в базе данных"""
         try:
             supabase_client.table("Task").update({
                 "title": title,
@@ -825,7 +776,6 @@ class TaskManagerApp:
             messagebox.showerror("Ошибка", f"Не удалось обновить задачу: {str(e)}")
     
     def delete_task(self):
-        """Удаление выбранной задачи"""
         selected_item = self.tasks_tree.focus()
         if not selected_item:
             messagebox.showwarning("Предупреждение", "Выберите задачу для удаления")
@@ -842,7 +792,6 @@ class TaskManagerApp:
                 messagebox.showerror("Ошибка", f"Не удалось удалить задачу: {str(e)}")
     
     def show_add_user_dialog(self):
-        """Диалоговое окно добавления нового пользователя"""
         dialog = tk.Toplevel(self.root)
         dialog.title("Добавить пользователя")
         dialog.geometry("400x200")
@@ -855,7 +804,6 @@ class TaskManagerApp:
         email_entry = ttk.Entry(dialog, width=30)
         email_entry.grid(row=1, column=1, padx=10, pady=5)
         
-        # Кнопки
         button_frame = ttk.Frame(dialog)
         button_frame.grid(row=2, column=0, columnspan=2, pady=10)
         
@@ -869,7 +817,6 @@ class TaskManagerApp:
         ttk.Button(button_frame, text="Отмена", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
     
     def add_user(self, name, email, dialog):
-        """Добавление нового пользователя в базу данных"""
         if not name or not email:
             messagebox.showerror("Ошибка", "Имя и email обязательны")
             return
@@ -888,7 +835,6 @@ class TaskManagerApp:
             messagebox.showerror("Ошибка", f"Не удалось добавить пользователя: {str(e)}")
     
     def edit_user(self):
-        """Редактирование выбранного пользователя"""
         selected_item = self.users_tree.focus()
         if not selected_item:
             messagebox.showwarning("Предупреждение", "Выберите пользователя для редактирования")
@@ -927,7 +873,6 @@ class TaskManagerApp:
         ttk.Button(button_frame, text="Отмена", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
     
     def update_user(self, user_id, name, email, dialog):
-        """Обновление пользователя в базе данных"""
         try:
             supabase_client.table("User").update({
                 "name": name,
@@ -942,7 +887,6 @@ class TaskManagerApp:
             messagebox.showerror("Ошибка", f"Не удалось обновить пользователя: {str(e)}")
     
     def delete_user(self):
-        """Удаление выбранного пользователя"""
         selected_item = self.users_tree.focus()
         if not selected_item:
             messagebox.showwarning("Предупреждение", "Выберите пользователя для удаления")
@@ -959,21 +903,19 @@ class TaskManagerApp:
                 messagebox.showerror("Ошибка", f"Не удалось удалить пользователя: {str(e)}")
     
     def check_notifications(self):
-        """Проверка уведомлений"""
         try:
             notifications = supabase_client.table("Notification").select("*").eq("user_id", self.current_user["id"]).eq("is_read", False).execute().data
             
             for notification in notifications:
                 messagebox.showinfo("Уведомление", notification["message"])
                 
-                # Помечаем уведомление как прочитанное
                 supabase_client.table("Notification").update({"is_read": True}).eq("id", notification["id"]).execute()
                 
         except Exception as e:
             print(f"Ошибка при проверке уведомлений: {e}")
         
-        # Повторяем проверку через 1 секунду
-        self.root.after(1000, self.check_notifications)
+        # повторяем проверку через 30 секунд
+        self.root.after(30000, self.check_notifications)
 
 if __name__ == "__main__":
     root = tk.Tk()
